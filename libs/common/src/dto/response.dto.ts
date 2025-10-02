@@ -51,48 +51,48 @@ export class ResponseDto<T = any> {
 
   static created<T>(
     data: T,
-    message: string = 'Created successfully'
+    message: string = 'success'
   ): ResponseDto<T> {
     return new ResponseDto(true, 201, message, data);
   }
 
   static badRequest(
-    message: string = 'Bad request',
+    message: string = 'bad_request',
     error?: { code?: string; details?: any }
   ): ResponseDto {
     return new ResponseDto(false, 400, message, undefined, error);
   }
 
   static unauthorized(
-    message: string = 'Unauthorized',
+    message: string = 'unauthorized',
     error?: { code?: string; details?: any }
   ): ResponseDto {
     return new ResponseDto(false, 401, message, undefined, error);
   }
 
   static forbidden(
-    message: string = 'Forbidden',
+    message: string = 'forbidden',
     error?: { code?: string; details?: any }
   ): ResponseDto {
     return new ResponseDto(false, 403, message, undefined, error);
   }
 
   static notFound(
-    message: string = 'Not found',
+    message: string = 'not_found',
     error?: { code?: string; details?: any }
   ): ResponseDto {
     return new ResponseDto(false, 404, message, undefined, error);
   }
 
   static conflict(
-    message: string = 'Conflict',
+    message: string = 'conflict',
     error?: { code?: string; details?: any }
   ): ResponseDto {
     return new ResponseDto(false, 409, message, undefined, error);
   }
 
   static internalServerError(
-    message: string = 'Internal server error',
+    message: string = 'internal_server_error',
     error?: { code?: string; details?: any }
   ): ResponseDto {
     return new ResponseDto(false, 500, message, undefined, error);

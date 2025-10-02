@@ -3,6 +3,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthService } from './auth.service';
+import { GoogleOAuthService } from './services/google-oauth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { RolesGuard } from './guards/roles.guard';
 import { User } from '@app/database/entities/user.entity';
@@ -19,7 +20,7 @@ import { User } from '@app/database/entities/user.entity';
     }),
   ],
   controllers: [],
-  providers: [AuthService, JwtStrategy, RolesGuard],
-  exports: [AuthService, JwtStrategy, RolesGuard, PassportModule, JwtModule],
+  providers: [AuthService, GoogleOAuthService, JwtStrategy, RolesGuard],
+  exports: [AuthService, GoogleOAuthService, JwtStrategy, RolesGuard, PassportModule, JwtModule],
 })
 export class AuthModule {}

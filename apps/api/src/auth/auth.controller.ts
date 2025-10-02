@@ -5,110 +5,81 @@ import {
   HttpCode,
   HttpStatus,
   Get,
-  UseGuards,
   Request,
+  Res,
+  UnauthorizedException,
+  UseGuards,
 } from '@nestjs/common';
-import { AuthService } from '@app/auth';
+import { AuthService, JwtAuthGuard } from '@app/auth';
 import { SignInDto, SignUpDto } from '@app/auth/dto';
-import { JwtAuthGuard, RolesGuard, Roles, UserRole } from '@app/auth';
-import { ResponseDto } from '@app/common';
+import { ResponseDto, CookieService } from '@app/common';
+import { Response as ExpressResponse } from 'express';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly cookieService: CookieService,
+  ) { }
 
   @Post('sign-up')
   @HttpCode(HttpStatus.CREATED)
-  async signUp(@Body() signUpDto: SignUpDto) {
+  async signUp(@Body() signUpDto: SignUpDto, @Res({ passthrough: true }) res: ExpressResponse) {
     const result = await this.authService.signUp(signUpDto);
+    const tokens = await this.authService.generateTokensForUser(result.user.id);
+    this.cookieService.setTokens(res, tokens);
     return ResponseDto.created(result, 'user_created_successfully');
   }
 
   @Post('sign-in')
   @HttpCode(HttpStatus.OK)
-  async signIn(@Body() signInDto: SignInDto) {
+  async signIn(@Body() signInDto: SignInDto, @Res({ passthrough: true }) res: ExpressResponse) {
     const result = await this.authService.signIn(signInDto);
-    return ResponseDto.success(result, 'login_successful');
+    const tokens = await this.authService.generateTokensForUser(result.user.id);
+    this.cookieService.setTokens(res, tokens);
+    return ResponseDto.success(result, 'sign_in_successful');
   }
 
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  async refreshToken(@Body('refreshToken') refreshToken: string) {
+  async refreshToken(@Request() req, @Res({ passthrough: true }) res: ExpressResponse) {
+    const refreshToken = req.cookies.refreshToken;
+    if (!refreshToken) {
+      throw new UnauthorizedException('refresh_token_not_found');
+    }
     const result = await this.authService.refreshToken(refreshToken);
-    return ResponseDto.success(result, 'token_refreshed_successfully');
+    this.cookieService.setAccessToken(res, result.accessToken);
+    return ResponseDto.success({}, 'token_refreshed_successfully');
   }
 
-  @Get('profile')
-  @UseGuards(JwtAuthGuard)
-  async getProfile(@Request() req) {
-    const user = req.user;
-    const userData = {
-      id: user.id,
-      email: user.email,
-      username: user.username,
-      role: user.role,
-      status: user.status,
-      phone: user.phone,
-      createdAt: user.createdAt,
-    };
-    return ResponseDto.success(userData, 'profile_retrieved_successfully');
+  @Post('sign-out')
+  @HttpCode(HttpStatus.OK)
+  async signOut(@Res({ passthrough: true }) res: ExpressResponse) {
+    this.cookieService.clearTokens(res);
+    return ResponseDto.success({}, 'sign_out_successful');
+  }
+
+  @Get('google/url')
+  getGoogleAuthUrl() {
+    const authUrl = this.authService.getGoogleAuthUrl();
+    return ResponseDto.success({ authUrl }, 'google_auth_url_generated');
+  }
+
+  @Get('google/callback')
+  async googleCallback(@Request() req, @Res({ passthrough: false }) res: ExpressResponse) {
+    const { code } = req.query;
+    if (!code) {
+      throw new UnauthorizedException('authorization_code_missing');
+    }
+    const result = await this.authService.handleGoogleCallback(code as string);
+    const tokens = await this.authService.generateTokensForUser(result.user.id);
+    this.cookieService.setTokens(res, tokens);
+    res.redirect('http://localhost:3000');
   }
 
   @Get('me')
   @UseGuards(JwtAuthGuard)
-  async getCurrentUser(@Request() req) {
-    return ResponseDto.success({ user: req.user }, 'current_user_retrieved_successfully');
-  }
-
-  // ===== ROLE-BASED EXAMPLES =====
-
-  @Get('admin-only')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
-  async adminOnly(@Request() req) {
-    return ResponseDto.success(
-      { user: req.user },
-      'this_endpoint_is_only_accessible_by_ADMIN'
-    );
-  }
-
-  @Get('page-admin-only')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.PAGE_ADMIN)
-  async pageAdminOnly(@Request() req) {
-    return ResponseDto.success(
-      { user: req.user },
-      'this_endpoint_is_only_accessible_by_PAGE_ADMIN'
-    );
-  }
-
-  @Get('shop-owner-only')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.SHOP_OWNER)
-  async shopOwnerOnly(@Request() req) {
-    return ResponseDto.success(
-      { user: req.user },
-      'this_endpoint_is_only_accessible_by_SHOP_OWNER'
-    );
-  }
-
-  @Get('admin-or-page-admin')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.PAGE_ADMIN)
-  async adminOrPageAdmin(@Request() req) {
-    return ResponseDto.success(
-      { user: req.user },
-      'this_endpoint_is_accessible_by_ADMIN_or_PAGE_ADMIN'
-    );
-  }
-
-  @Get('all-roles')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.PAGE_ADMIN, UserRole.SHOP_OWNER)
-  async allRoles(@Request() req) {
-    return ResponseDto.success(
-      { user: req.user },
-      'this_endpoint_is_accessible_by_all_roles'
-    );
+  getMe(@Request() req) {
+    return ResponseDto.success(req.user, 'user_info_retrieved');
   }
 }
