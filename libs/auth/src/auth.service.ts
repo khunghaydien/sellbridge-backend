@@ -12,6 +12,7 @@ import { SignInDto } from './dto/sign-in.dto';
 import { SignUpDto } from './dto/sign-up.dto';
 import { GoogleOAuthService, GoogleUserInfo } from './services/google-oauth.service';
 import { FacebookOAuthService, FacebookUserInfo } from './services/facebook-oauth.service';
+import { EncryptionService } from '@app/common';
 import { JwtPayload } from './strategies/jwt.strategy';
 
 export interface AuthResponse {
@@ -36,6 +37,7 @@ export class AuthService {
     private jwtService: JwtService,
     private googleOAuthService: GoogleOAuthService,
     private facebookOAuthService: FacebookOAuthService,
+    private encryptionService: EncryptionService,
   ) { }
 
   private async createUser(signUpDto: SignUpDto): Promise<AuthResponse> {
@@ -160,18 +162,42 @@ export class AuthService {
   }
 
   async handleFacebookUser(facebookUserInfo: FacebookUserInfo): Promise<AuthResponse> {
-    const { email, name } = facebookUserInfo;
+    const { email, name, accessToken, expiresIn } = facebookUserInfo;
+    
+    // Encrypt the Facebook access token before storing
+    const encryptedToken = this.encryptionService.encrypt(accessToken);
+    
+    // Calculate token expiration timestamp
+    const tokenExpiresAt = expiresIn 
+      ? Date.now() + (expiresIn * 1000) // Convert seconds to milliseconds
+      : undefined;
+    
     let user = await this.userRepository.findOne({ where: { email } });
+    
     if (!user) {
-      const createUserDto: SignUpDto = {
+      // Create new user with Facebook token
+      const hashedPassword = await bcrypt.hash('123456', 10);
+      user = this.userRepository.create({
         email,
         username: name,
-        password: '123456',
-      };
-      return await this.createUser(createUserDto);
+        password: hashedPassword,
+        facebookAccessToken: encryptedToken,
+        facebookTokenExpiresAt: tokenExpiresAt,
+        status: 'active',
+        role: 'shop_owner',
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+      await this.userRepository.save(user);
+    } else {
+      // Update existing user with Facebook token
+      user.facebookAccessToken = encryptedToken;
+      user.facebookTokenExpiresAt = tokenExpiresAt || user.facebookTokenExpiresAt;
+      user.lastLoginAt = Date.now();
+      user.updatedAt = Date.now();
+      await this.userRepository.save(user);
     }
-    user.lastLoginAt = Date.now();
-    await this.userRepository.save(user);
+    
     return {
       user: {
         id: user.id,

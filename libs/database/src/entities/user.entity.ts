@@ -63,6 +63,22 @@ export class User {
     role: string;
 
     @Column({
+        name: 'facebook_access_token',
+        type: 'text',
+        nullable: true,
+        comment: 'Encrypted Facebook access token for API calls'
+    })
+    facebookAccessToken: string;
+
+    @Column({
+        name: 'facebook_token_expires_at',
+        type: 'bigint',
+        nullable: true,
+        comment: 'Facebook access token expiration timestamp'
+    })
+    facebookTokenExpiresAt: number;
+
+    @Column({
         name: 'created_at',
         type: 'bigint',
         nullable: false,

@@ -7,6 +7,7 @@ import { GoogleOAuthService } from './services/google-oauth.service';
 import { FacebookOAuthService } from './services/facebook-oauth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { RolesGuard } from './guards/roles.guard';
+import { EncryptionService } from '@app/common';
 import { User } from '@app/database/entities/user.entity';
 
 @Module({
@@ -21,7 +22,7 @@ import { User } from '@app/database/entities/user.entity';
     }),
   ],
   controllers: [],
-  providers: [AuthService, GoogleOAuthService, FacebookOAuthService, JwtStrategy, RolesGuard],
-  exports: [AuthService, GoogleOAuthService, FacebookOAuthService, JwtStrategy, RolesGuard, PassportModule, JwtModule],
+  providers: [AuthService, GoogleOAuthService, FacebookOAuthService, EncryptionService, JwtStrategy, RolesGuard],
+  exports: [AuthService, GoogleOAuthService, FacebookOAuthService, EncryptionService, JwtStrategy, RolesGuard, PassportModule, JwtModule],
 })
 export class AuthModule {}

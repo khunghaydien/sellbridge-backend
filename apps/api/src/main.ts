@@ -25,7 +25,8 @@ async function bootstrap() {
       'Authorization',
       'x-google-email',
       'x-google-name', 
-      'x-google-picture'
+      'x-google-picture',
+      'x-facebook-token'
     ],
     exposedHeaders: ['Set-Cookie'],
   });

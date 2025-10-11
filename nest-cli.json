@@ -37,6 +37,15 @@
         "tsConfigPath": "libs/database/tsconfig.lib.json"
       }
     },
+    "facebook": {
+      "type": "library",
+      "root": "libs/facebook",
+      "entryFile": "index",
+      "sourceRoot": "libs/facebook/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/facebook/tsconfig.lib.json"
+      }
+    },
     "my-app": {
       "type": "application",
       "root": "apps/my-app",

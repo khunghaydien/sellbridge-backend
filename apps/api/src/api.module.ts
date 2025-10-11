@@ -4,6 +4,8 @@ import { ConfigModule } from '@nestjs/config';
 import { ApiController } from './api.controller';
 import { ApiService } from './api.service';
 import { AuthModule } from './auth/auth.module';
+import { FacebookModule } from '@app/facebook';
+import { FacebookController } from './facebook/facebook.controller';
 import { User } from '@app/database/entities/user.entity';
 
 @Module({
@@ -23,8 +25,9 @@ import { User } from '@app/database/entities/user.entity';
       logging: false,
     }),
     AuthModule,
+    FacebookModule,
   ],
-  controllers: [ApiController],
+  controllers: [ApiController, FacebookController],
   providers: [ApiService],
 })
 export class ApiModule { }

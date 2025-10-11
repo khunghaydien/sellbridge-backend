@@ -10,6 +10,8 @@ export interface FacebookUserInfo {
       url: string;
     };
   };
+  accessToken: string;
+  expiresIn?: number; // Token expiry in seconds
 }
 
 @Injectable()
@@ -57,6 +59,7 @@ export class FacebookOAuthService {
       );
 
       const accessToken = tokenResponse.data.access_token;
+      const expiresIn = tokenResponse.data.expires_in; // Token expiry in seconds
 
       if (!accessToken) {
         throw new UnauthorizedException('facebook_access_token_missing');
@@ -84,6 +87,8 @@ export class FacebookOAuthService {
         email: userInfo.email,
         name: userInfo.name,
         picture: userInfo.picture,
+        accessToken: accessToken,
+        expiresIn: expiresIn,
       };
     } catch (error) {
       if (error instanceof UnauthorizedException) {
