@@ -11,6 +11,7 @@ import { User } from '@app/database/entities/user.entity';
 import { SignInDto } from './dto/sign-in.dto';
 import { SignUpDto } from './dto/sign-up.dto';
 import { GoogleOAuthService, GoogleUserInfo } from './services/google-oauth.service';
+import { FacebookOAuthService, FacebookUserInfo } from './services/facebook-oauth.service';
 import { JwtPayload } from './strategies/jwt.strategy';
 
 export interface AuthResponse {
@@ -34,6 +35,7 @@ export class AuthService {
     private userRepository: Repository<User>,
     private jwtService: JwtService,
     private googleOAuthService: GoogleOAuthService,
+    private facebookOAuthService: FacebookOAuthService,
   ) { }
 
   private async createUser(signUpDto: SignUpDto): Promise<AuthResponse> {
@@ -155,6 +157,38 @@ export class AuthService {
   async handleGoogleCallback(code: string): Promise<AuthResponse> {
     const googleUserInfo = await this.googleOAuthService.handleCallback(code);
     return this.handleGoogleUser(googleUserInfo);
+  }
+
+  async handleFacebookUser(facebookUserInfo: FacebookUserInfo): Promise<AuthResponse> {
+    const { email, name } = facebookUserInfo;
+    let user = await this.userRepository.findOne({ where: { email } });
+    if (!user) {
+      const createUserDto: SignUpDto = {
+        email,
+        username: name,
+        password: '123456',
+      };
+      return await this.createUser(createUserDto);
+    }
+    user.lastLoginAt = Date.now();
+    await this.userRepository.save(user);
+    return {
+      user: {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        role: user.role,
+      },
+    };
+  }
+
+  getFacebookAuthUrl(): string {
+    return this.facebookOAuthService.getAuthUrl();
+  }
+
+  async handleFacebookCallback(code: string): Promise<AuthResponse> {
+    const facebookUserInfo = await this.facebookOAuthService.handleCallback(code);
+    return this.handleFacebookUser(facebookUserInfo);
   }
 
 

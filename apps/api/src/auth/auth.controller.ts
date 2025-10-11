@@ -77,6 +77,24 @@ export class AuthController {
     res.redirect('http://localhost:3000');
   }
 
+  @Get('facebook/url')
+  getFacebookAuthUrl() {
+    const authUrl = this.authService.getFacebookAuthUrl();
+    return ResponseDto.success({ authUrl }, 'facebook_auth_url_generated');
+  }
+
+  @Get('facebook/callback')
+  async facebookCallback(@Request() req, @Res({ passthrough: false }) res: ExpressResponse) {
+    const { code } = req.query;
+    if (!code) {
+      throw new UnauthorizedException('authorization_code_missing');
+    }
+    const result = await this.authService.handleFacebookCallback(code as string);
+    const tokens = await this.authService.generateTokensForUser(result.user.id);
+    this.cookieService.setTokens(res, tokens);
+    res.redirect('http://localhost:3000');
+  }
+
   @Get('me')
   @UseGuards(JwtAuthGuard)
   getMe(@Request() req) {
