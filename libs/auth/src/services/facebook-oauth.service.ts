@@ -3,13 +3,7 @@ import axios from 'axios';
 
 export interface FacebookUserInfo {
   id: string;
-  email: string;
   name: string;
-  picture?: {
-    data: {
-      url: string;
-    };
-  };
   accessToken: string;
   expiresIn?: number; // Token expiry in seconds
 }
@@ -21,15 +15,15 @@ export class FacebookOAuthService {
   private readonly redirectUri: string;
 
   constructor() {
-    this.clientId = process.env.FACEBOOK_APP_ID || '';
-    this.clientSecret = process.env.FACEBOOK_APP_SECRET || '';
+    this.clientId = process.env.FACEBOOK_CLIENT_ID || '';
+    this.clientSecret = process.env.FACEBOOK_CLIENT_SECRET || '';
     this.redirectUri = `${process.env.BACKEND_URL || 'http://localhost:3030'}/auth/facebook/callback`;
   }
 
   // Tạo Facebook OAuth URL để redirect user đến Facebook
   getAuthUrl(): string {
-    const scope = 'email,public_profile';
-    
+    const scope = 'pages_show_list,pages_manage_cta,pages_manage_instant_articles,pages_show_list,read_page_mailboxes,ads_management,ads_read,business_management,pages_messaging,pages_messaging_phone_number,pages_messaging_subscriptions,attribution_read,page_events,pages_read_engagement,pages_manage_metadata,pages_read_user_content,pages_manage_ads,pages_manage_posts,pages_manage_engagement,instagram_manage_events,manage_app_solution,pages_utility_messaging,public_profile';
+
     const params = new URLSearchParams({
       client_id: this.clientId,
       redirect_uri: this.redirectUri,
@@ -39,7 +33,7 @@ export class FacebookOAuthService {
       display: 'popup',
     });
 
-    return `https://www.facebook.com/v18.0/dialog/oauth?${params.toString()}`;
+    return `https://www.facebook.com/v23.0/dialog/oauth?${params.toString()}`;
   }
 
   // Xử lý callback từ Facebook OAuth
@@ -47,7 +41,7 @@ export class FacebookOAuthService {
     try {
       // Step 1: Exchange authorization code for access token
       const tokenResponse = await axios.get(
-        'https://graph.facebook.com/v18.0/oauth/access_token',
+        'https://graph.facebook.com/v23.0/oauth/access_token',
         {
           params: {
             client_id: this.clientId,
@@ -67,10 +61,10 @@ export class FacebookOAuthService {
 
       // Step 2: Get user info from Facebook
       const userResponse = await axios.get(
-        'https://graph.facebook.com/v18.0/me',
+        'https://graph.facebook.com/v23.0/me',
         {
           params: {
-            fields: 'id,name,picture',
+            fields: 'id,name',
             access_token: accessToken,
           },
         }
@@ -78,15 +72,9 @@ export class FacebookOAuthService {
 
       const userInfo = userResponse.data;
 
-      if (!userInfo.email) {
-        throw new UnauthorizedException('facebook_email_not_provided');
-      }
-
       return {
         id: userInfo.id,
-        email: userInfo.email || `${userInfo.id.toString()}@gmail.com`,
-        name: userInfo.name,
-        picture: userInfo.picture,
+        name: userInfo.name || 'Facebook User',
         accessToken: accessToken,
         expiresIn: expiresIn,
       };
@@ -94,10 +82,10 @@ export class FacebookOAuthService {
       if (error instanceof UnauthorizedException) {
         throw error;
       }
-      
+
       // Log error for debugging
       console.error('Facebook OAuth Error:', error.response?.data || error.message);
-      
+
       throw new UnauthorizedException('facebook_oauth_failed');
     }
   }

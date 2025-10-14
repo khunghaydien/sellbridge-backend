@@ -162,7 +162,7 @@ export class AuthService {
   }
 
   async handleFacebookUser(facebookUserInfo: FacebookUserInfo): Promise<AuthResponse> {
-    const { email, name, accessToken, expiresIn } = facebookUserInfo;
+    const { id: facebookId, name, accessToken, expiresIn } = facebookUserInfo;
     
     // Encrypt the Facebook access token before storing
     const encryptedToken = this.encryptionService.encrypt(accessToken);
@@ -172,13 +172,19 @@ export class AuthService {
       ? Date.now() + (expiresIn * 1000) // Convert seconds to milliseconds
       : undefined;
     
-    let user = await this.userRepository.findOne({ where: { email } });
+    // Generate email format: {name}_{id}@gmail.com
+    const sanitizedName = name.toLowerCase().replace(/\s+/g, '_');
+    const generatedEmail = `${sanitizedName}_${facebookId}@gmail.com`;
+    
+    // Find user by email
+    let user = await this.userRepository.findOne({ where: { email: generatedEmail } });
     
     if (!user) {
-      // Create new user with Facebook token
+      // Create new user with Facebook info
       const hashedPassword = await bcrypt.hash('123456', 10);
+      
       user = this.userRepository.create({
-        email,
+        email: generatedEmail,
         username: name,
         password: hashedPassword,
         facebookAccessToken: encryptedToken,
@@ -190,7 +196,7 @@ export class AuthService {
       });
       await this.userRepository.save(user);
     } else {
-      // Update existing user with Facebook token
+      // Update existing user with latest Facebook token
       user.facebookAccessToken = encryptedToken;
       user.facebookTokenExpiresAt = tokenExpiresAt || user.facebookTokenExpiresAt;
       user.lastLoginAt = Date.now();

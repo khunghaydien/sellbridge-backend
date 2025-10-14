@@ -6,6 +6,7 @@ import { ApiService } from './api.service';
 import { AuthModule } from './auth/auth.module';
 import { FacebookModule } from '@app/facebook';
 import { FacebookController } from './facebook/facebook.controller';
+import { WebhookController } from './webhook/webhook.controller';
 import { User } from '@app/database/entities/user.entity';
 
 @Module({
@@ -26,8 +27,9 @@ import { User } from '@app/database/entities/user.entity';
     }),
     AuthModule,
     FacebookModule,
+    TypeOrmModule.forFeature([User]),
   ],
-  controllers: [ApiController, FacebookController],
+  controllers: [ApiController, FacebookController, WebhookController],
   providers: [ApiService],
 })
 export class ApiModule { }

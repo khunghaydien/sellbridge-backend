@@ -31,6 +31,29 @@ export class FacebookController {
   ) {}
 
   /**
+   * Get user's Facebook pages with access tokens
+   */
+  @Get('pages')
+  async getUserPages(@Request() req) {
+    const user = req.user;
+    
+    if (!user.facebookAccessToken) {
+      throw new BadRequestException('user_facebook_not_connected');
+    }
+
+    // Decrypt Facebook access token
+    const decryptedToken = this.encryptionService.decrypt(user.facebookAccessToken);
+    
+    try {
+      const pagesResponse = await this.facebookGraphService.getUserPages(decryptedToken);
+      
+      return ResponseDto.success(pagesResponse.data, 'pages_fetched_successfully');
+    } catch (error) {
+      throw new BadRequestException(error.message || 'failed_to_fetch_pages');
+    }
+  }
+
+  /**
    * Helper method to get user's Facebook access token from database
    * @param userId User ID from JWT
    * @returns Decrypted Facebook access token
@@ -63,13 +86,13 @@ export class FacebookController {
   }
 
   /**
-   * Get user's Facebook pages (me/accounts)
-   * GET /facebook/pages
+   * Get user's Facebook pages (me/accounts) - Legacy endpoint
+   * GET /facebook/pages/legacy
    */
-  @Get('pages')
-  async getUserPages(@Request() req) {
+  @Get('pages/legacy')
+  async getUserPagesLegacy(@Request() req) {
     const accessToken = await this.getUserFacebookToken(req.user.id);
-    const result = await this.facebookGraphService.getUserPages(accessToken);
+    const result = await this.facebookGraphService.getUserPagesLegacy(accessToken);
     return ResponseDto.success(result, 'facebook_pages_retrieved');
   }
 

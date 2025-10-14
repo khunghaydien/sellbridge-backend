@@ -24,11 +24,56 @@ export class FacebookGraphService {
   private readonly baseUrl: string = 'https://graph.facebook.com/v23.0';
 
   /**
-   * Get user's Facebook pages (me/accounts)
+   * Get user's Facebook pages with access tokens
+   */
+  async getUserPages(userAccessToken: string): Promise<FacebookGraphResponse> {
+    try {
+      const response = await axios.get(`${this.baseUrl}/me/accounts`, {
+        params: {
+          access_token: userAccessToken,
+          fields: 'id,name,access_token,category,picture'
+        }
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Error fetching user pages:', error.response?.data || error.message);
+      throw new BadRequestException(
+        error.response?.data?.error?.message || 'Failed to fetch Facebook pages'
+      );
+    }
+  }
+
+  /**
+   * Get page access token for a specific page
+   */
+  async getPageAccessToken(pageId: string, userAccessToken: string): Promise<string> {
+    try {
+      const pagesResponse = await this.getUserPages(userAccessToken);
+      
+      if (!pagesResponse.data || !Array.isArray(pagesResponse.data)) {
+        throw new BadRequestException('No pages found for user');
+      }
+
+      const page = pagesResponse.data.find((p: any) => p.id === pageId);
+      if (!page) {
+        throw new BadRequestException(`Page ${pageId} not found or no access`);
+      }
+
+      return page.access_token;
+    } catch (error: any) {
+      console.error('Error getting page access token:', error.response?.data || error.message);
+      throw new BadRequestException(
+        error.response?.data?.error?.message || 'Failed to get page access token'
+      );
+    }
+  }
+
+  /**
+   * Get user's Facebook pages (me/accounts) - Legacy method
    * @param accessToken User's Facebook access token
    * @returns List of pages user manages
    */
-  async getUserPages(accessToken: string): Promise<FacebookGraphResponse> {
+  async getUserPagesLegacy(accessToken: string): Promise<FacebookGraphResponse> {
     if (!accessToken) {
       throw new UnauthorizedException('access_token_required');
     }
