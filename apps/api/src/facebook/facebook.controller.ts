@@ -9,8 +9,11 @@ import {
   Param,
   Query,
   BadRequestException,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
-import { FacebookGraphService, SendMessageDto } from '@app/facebook';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { FacebookGraphService, SendMessageDto, CreatePostDto, CreatePhotoPostDto } from '@app/facebook';
 import { ResponseDto, EncryptionService } from '@app/common';
 import { JwtAuthGuard } from '@app/auth';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -65,7 +68,7 @@ export class FacebookController {
    */
   @Get('pages')
   async getUserPages(@Request() req) {
-    const accessToken = 'EAAKhp771dKkBPtwqwSfj0Up3bIEF9r8RVaBqdxP8YYhkpRtlbutG6C90QvgesygLOYEIHCa3A8EvHqybgDM4JCPRNsPCK4ARsY8jAVx2b7pMb7q0yAZCPLb1H0oDUL0QzxuRCWra7euJ3xMDQeRU2zqRsGBjHHcvOOKrNZBaTZAKwg0AvajFqSOeq36z4dBP0g6OX1JAITr5MqXvSmi52Ab3gE2wqXL'
+    const accessToken = await this.getUserFacebookToken(req.user.id);
     const result = await this.facebookGraphService.getUserPages(accessToken);
     return ResponseDto.success(result, 'facebook_pages_retrieved');
   }
@@ -160,6 +163,103 @@ export class FacebookController {
       sendMessageDto.pageAccessToken,
     );
     return ResponseDto.success(result, 'message_sent_successfully');
+  }
+
+  /**
+   * Create a post on Facebook Page feed
+   * POST /facebook/pages/:pageId/feed
+   * 
+   * Body:
+   * {
+   *   "message": "Post content/message",
+   *   "link": "https://example.com" (optional),
+   *   "published": "true" (optional, default: true),
+   *   "pageAccessToken": "Page access token"
+   * }
+   */
+  @Post('pages/:pageId/feed')
+  async createPost(
+    @Request() req,
+    @Param('pageId') pageId: string,
+    @Body() createPostDto: CreatePostDto,
+  ) {
+    const result = await this.facebookGraphService.createPost(
+      pageId,
+      createPostDto.message,
+      createPostDto.pageAccessToken,
+      createPostDto.link,
+      createPostDto.published,
+    );
+    return ResponseDto.success(result, 'post_created_successfully');
+  }
+
+  /**
+   * Create a photo post on Facebook Page
+   * POST /facebook/pages/:pageId/photos
+   * 
+   * Body (JSON):
+   * {
+   *   "caption": "Beautiful sunset 🌅 #nature #photography",
+   *   "url": "https://example.com/photo.jpg",
+   *   "published": "true" (optional),
+   *   "pageAccessToken": "Page access token"
+   * }
+   */
+  @Post('pages/:pageId/photos')
+  async createPhotoPost(
+    @Request() req,
+    @Param('pageId') pageId: string,
+    @Body() createPhotoPostDto: CreatePhotoPostDto,
+  ) {
+    const result = await this.facebookGraphService.createPhotoPost(
+      pageId,
+      createPhotoPostDto.pageAccessToken,
+      createPhotoPostDto.caption,
+      createPhotoPostDto.url,
+      undefined,
+      createPhotoPostDto.published,
+    );
+    return ResponseDto.success(result, 'photo_post_created_successfully');
+  }
+
+  /**
+   * Upload and create a photo post on Facebook Page
+   * POST /facebook/pages/:pageId/photos/upload
+   * Content-Type: multipart/form-data
+   * 
+   * Form fields:
+   * - photo: Image file
+   * - caption: Caption text (optional, can include hashtags)
+   * - published: 'true' or 'false' (optional)
+   * - pageAccessToken: Page access token
+   */
+  @Post('pages/:pageId/photos/upload')
+  @UseInterceptors(FileInterceptor('photo'))
+  async uploadPhotoPost(
+    @Request() req,
+    @Param('pageId') pageId: string,
+    @UploadedFile() photo: Express.Multer.File,
+    @Body('caption') caption?: string,
+    @Body('published') published?: string,
+    @Body('pageAccessToken') pageAccessToken?: string,
+  ) {
+    if (!photo) {
+      throw new BadRequestException('photo_file_required');
+    }
+
+    if (!pageAccessToken) {
+      throw new BadRequestException('page_access_token_required');
+    }
+
+    const result = await this.facebookGraphService.createPhotoPost(
+      pageId,
+      pageAccessToken,
+      caption,
+      undefined,
+      photo.buffer,
+      published,
+    );
+    return ResponseDto.success(result, 'photo_uploaded_successfully');
   }
 }
 

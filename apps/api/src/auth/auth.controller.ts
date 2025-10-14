@@ -74,7 +74,7 @@ export class AuthController {
     const result = await this.authService.handleGoogleCallback(code as string);
     const tokens = await this.authService.generateTokensForUser(result.user.id);
     this.cookieService.setTokens(res, tokens);
-    res.redirect('http://localhost:3000');
+    res.redirect(process.env.FRONTEND_URL || 'http://localhost:3000');
   }
 
   @Get('facebook/url')
@@ -92,7 +92,7 @@ export class AuthController {
     const result = await this.authService.handleFacebookCallback(code as string);
     const tokens = await this.authService.generateTokensForUser(result.user.id);
     this.cookieService.setTokens(res, tokens);
-    res.redirect('http://localhost:3000');
+    res.redirect(process.env.FRONTEND_URL || 'http://localhost:3000');
   }
 
   @Get('me')

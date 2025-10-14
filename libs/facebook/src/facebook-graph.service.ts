@@ -254,5 +254,181 @@ export class FacebookGraphService {
       throw new BadRequestException('facebook_api_send_message_failed');
     }
   }
+
+  /**
+   * Create a post on Facebook Page feed
+   * @param pageId Facebook Page ID
+   * @param message Post message/content
+   * @param pageAccessToken Page access token
+   * @param link Optional link to share
+   * @param published Optional publish status (default: true)
+   * @returns Created post data
+   */
+  async createPost(
+    pageId: string,
+    message: string,
+    pageAccessToken: string,
+    link?: string,
+    published?: string,
+  ): Promise<FacebookGraphResponse> {
+    if (!pageId) {
+      throw new BadRequestException('page_id_required');
+    }
+
+    if (!message || message.trim() === '') {
+      throw new BadRequestException('message_required');
+    }
+
+    if (!pageAccessToken) {
+      throw new UnauthorizedException('page_access_token_required');
+    }
+
+    try {
+      const postData: any = {
+        message: message.trim(),
+      };
+
+      if (link) {
+        postData.link = link;
+      }
+
+      if (published !== undefined) {
+        postData.published = published;
+      }
+
+      const response = await axios.post(
+        `${this.baseUrl}/${pageId}/feed`,
+        postData,
+        {
+          params: {
+            access_token: pageAccessToken,
+          },
+        },
+      );
+
+      return response.data;
+    } catch (error: any) {
+      // Handle Facebook API errors
+      if (error.response?.data?.error) {
+        const fbError = error.response.data.error;
+        throw new BadRequestException({
+          message: fbError.message,
+          type: fbError.type,
+          code: fbError.code,
+          fbtrace_id: fbError.fbtrace_id,
+        });
+      }
+
+      // Handle network or other errors
+      console.error('Facebook API Error:', error.response?.data || error.message);
+      throw new BadRequestException('facebook_api_create_post_failed');
+    }
+  }
+
+  /**
+   * Create a photo post on Facebook Page
+   * @param pageId Facebook Page ID
+   * @param pageAccessToken Page access token
+   * @param caption Optional caption/message (can include hashtags)
+   * @param photoUrl Photo URL (for posting from URL)
+   * @param photoBuffer Photo buffer (for uploading file)
+   * @param published Optional publish status (default: true)
+   * @returns Created photo post data
+   */
+  async createPhotoPost(
+    pageId: string,
+    pageAccessToken: string,
+    caption?: string,
+    photoUrl?: string,
+    photoBuffer?: Buffer,
+    published?: string,
+  ): Promise<FacebookGraphResponse> {
+    if (!pageId) {
+      throw new BadRequestException('page_id_required');
+    }
+
+    if (!photoUrl && !photoBuffer) {
+      throw new BadRequestException('photo_url_or_file_required');
+    }
+
+    if (!pageAccessToken) {
+      throw new UnauthorizedException('page_access_token_required');
+    }
+
+    try {
+      const postData: any = {};
+
+      if (caption) {
+        postData.caption = caption.trim();
+      }
+
+      if (published !== undefined) {
+        postData.published = published;
+      }
+
+      let response;
+
+      if (photoUrl) {
+        // Post photo from URL
+        postData.url = photoUrl;
+        response = await axios.post(
+          `${this.baseUrl}/${pageId}/photos`,
+          postData,
+          {
+            params: {
+              access_token: pageAccessToken,
+            },
+          },
+        );
+      } else if (photoBuffer) {
+        // Upload photo from buffer using FormData
+        const FormData = require('form-data');
+        const formData = new FormData();
+        
+        formData.append('source', photoBuffer, {
+          filename: 'photo.jpg',
+          contentType: 'image/jpeg',
+        });
+
+        if (caption) {
+          formData.append('caption', caption.trim());
+        }
+
+        if (published !== undefined) {
+          formData.append('published', published);
+        }
+
+        response = await axios.post(
+          `${this.baseUrl}/${pageId}/photos`,
+          formData,
+          {
+            params: {
+              access_token: pageAccessToken,
+            },
+            headers: {
+              ...formData.getHeaders(),
+            },
+          },
+        );
+      }
+
+      return response.data;
+    } catch (error: any) {
+      // Handle Facebook API errors
+      if (error.response?.data?.error) {
+        const fbError = error.response.data.error;
+        throw new BadRequestException({
+          message: fbError.message,
+          type: fbError.type,
+          code: fbError.code,
+          fbtrace_id: fbError.fbtrace_id,
+        });
+      }
+
+      // Handle network or other errors
+      console.error('Facebook API Error:', error.response?.data || error.message);
+      throw new BadRequestException('facebook_api_create_photo_post_failed');
+    }
+  }
 }
 

@@ -23,7 +23,7 @@ export class FacebookOAuthService {
   constructor() {
     this.clientId = process.env.FACEBOOK_APP_ID || '';
     this.clientSecret = process.env.FACEBOOK_APP_SECRET || '';
-    this.redirectUri = 'http://localhost:3030/auth/facebook/callback';
+    this.redirectUri = `${process.env.BACKEND_URL || 'http://localhost:3030'}/auth/facebook/callback`;
   }
 
   // Tạo Facebook OAuth URL để redirect user đến Facebook

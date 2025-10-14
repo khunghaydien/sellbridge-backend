@@ -22,7 +22,7 @@ export class GoogleOAuthService {
 
   // Tạo Google OAuth URL để redirect user đến Google
   getAuthUrl(): string {
-    const redirectUri = 'http://localhost:3030/auth/google/callback';
+    const redirectUri = `${process.env.BACKEND_URL || 'http://localhost:3030'}/auth/google/callback`;
     
     const authUrl = this.client.generateAuthUrl({
       access_type: 'offline',
@@ -39,7 +39,7 @@ export class GoogleOAuthService {
   // Xử lý callback từ Google OAuth
   async handleCallback(code: string): Promise<GoogleUserInfo> {
     try {
-      const redirectUri = 'http://localhost:3030/auth/google/callback';
+      const redirectUri = `${process.env.BACKEND_URL}/auth/google/callback`;
       
       // Exchange code for tokens
       const { tokens } = await this.client.getToken({
