@@ -70,7 +70,7 @@ export class FacebookOAuthService {
         'https://graph.facebook.com/v18.0/me',
         {
           params: {
-            fields: 'id,name,email,picture',
+            fields: 'id,name,picture',
             access_token: accessToken,
           },
         }
@@ -84,7 +84,7 @@ export class FacebookOAuthService {
 
       return {
         id: userInfo.id,
-        email: userInfo.email,
+        email: userInfo.email || `${userInfo.id.toString()}@gmail.com`,
         name: userInfo.name,
         picture: userInfo.picture,
         accessToken: accessToken,
