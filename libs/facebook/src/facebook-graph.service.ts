@@ -170,6 +170,83 @@ export class FacebookGraphService {
   }
 
   /**
+   * Get conversations from multiple pages (aggregated and sorted by time)
+   * @param pageIds Array of page IDs
+   * @param pageAccessTokens Object mapping pageId to access token
+   * @param limit Number of conversations per page (default: 25)
+   * @returns Aggregated conversations from all pages, sorted by updated_time
+   */
+  async getMultiplePageConversations(
+    pageIds: string[],
+    pageAccessTokens: Record<string, string>,
+    limit: number = 25,
+  ): Promise<FacebookGraphResponse> {
+    try {
+      // Fetch conversations from all pages in parallel
+      const conversationPromises = pageIds.map(async (pageId) => {
+        const pageAccessToken = pageAccessTokens[pageId];
+        if (!pageAccessToken) {
+          console.warn(`No access token found for page ${pageId}`);
+          return { data: [], paging: null, pageId };
+        }
+
+        try {
+          const result = await this.getPageConversations(
+            pageId,
+            pageAccessToken,
+            limit, // Get more per page to have better selection
+          );
+          return {
+            data: result.data || [],
+            paging: result.paging || null,
+            pageId,
+          };
+        } catch (error) {
+          console.error(`Failed to fetch conversations for page ${pageId}:`, error);
+          return { data: [], paging: null, pageId };
+        }
+      });
+
+      const results = await Promise.all(conversationPromises);
+
+      // Aggregate all conversations
+      const allConversations: any[] = [];
+      results.forEach(({ data, pageId }) => {
+        data.forEach((conversation: any) => {
+          allConversations.push({
+            ...conversation,
+            pageId, // Add pageId to each conversation for reference
+          });
+        });
+      });
+
+      // Sort by updated_time (newest first)
+      allConversations.sort((a, b) => {
+        const timeA = new Date(a.updated_time || 0).getTime();
+        const timeB = new Date(b.updated_time || 0).getTime();
+        return timeB - timeA;
+      });
+
+      // Take only the requested limit
+      const limitedConversations = allConversations.slice(0, limit);
+
+      return {
+        data: limitedConversations,
+        paging: {
+          // Simple paging info - in a real implementation, you might want to handle this more sophisticated
+          cursors: {
+            before: limitedConversations.length > 0 ? limitedConversations[0].id : null,
+            after: limitedConversations.length > 0 ? limitedConversations[limitedConversations.length - 1].id : null,
+          },
+        },
+      };
+    } catch (error: any) {
+      console.error('Error fetching multiple page conversations:', error);
+      throw new BadRequestException('failed_to_fetch_multiple_page_conversations');
+    }
+  }
+
+  /**
    * Get messages from a specific conversation
    * @param conversationId Conversation ID
    * @param pageAccessToken Page access token

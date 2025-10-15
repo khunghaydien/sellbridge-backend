@@ -130,6 +130,47 @@ export class FacebookController {
   }
 
   /**
+   * Get conversations for multiple pages (aggregated)
+   * POST /facebook/conversations/multiple
+   * 
+   * Body:
+   * {
+   *   "pageIds": ["page1", "page2"],
+   *   "pageAccessTokens": {
+   *     "page1": "token1",
+   *     "page2": "token2"
+   *   },
+   *   "limit": 25
+   * }
+   */
+  @Post('conversations/multiple')
+  async getMultiplePageConversations(
+    @Request() req,
+    @Body() body: {
+      pageIds: string[];
+      pageAccessTokens: Record<string, string>;
+      limit?: number;
+    },
+  ) {
+    const { pageIds, pageAccessTokens, limit = 25 } = body;
+
+    if (!pageIds || pageIds.length === 0) {
+      throw new BadRequestException('page_ids_required');
+    }
+
+    if (!pageAccessTokens || Object.keys(pageAccessTokens).length === 0) {
+      throw new BadRequestException('page_access_tokens_required');
+    }
+
+    const result = await this.facebookGraphService.getMultiplePageConversations(
+      pageIds,
+      pageAccessTokens,
+      limit,
+    );
+    return ResponseDto.success(result, 'multiple_page_conversations_retrieved');
+  }
+
+  /**
    * Get messages from a specific conversation
    * GET /facebook/conversations/:conversationId/messages?pageAccessToken=xxx&limit=25&after=xxx
    * 

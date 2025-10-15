@@ -118,7 +118,7 @@ export class WebhookController {
     console.log('  - Timestamp:', timestamp);
     console.log('  - Event keys:', Object.keys(event));
 
-    // Handle message
+      // Handle message
     if (event.message) {
       const messageData = {
         type: 'message',
@@ -140,8 +140,22 @@ export class WebhookController {
       console.log('  - Has Attachments:', !!messageData.attachments);
       console.log('  - Full message data:', JSON.stringify(messageData, null, 2));
 
-      // Find all users with valid Facebook tokens
-      await this.sendMessageToAllFacebookUsers(messageData);
+      // Send message data to clients subscribed to this page
+      this.facebookGateway.broadcastMessageToPage(pageId, messageData);
+
+      // Also create and send conversation format for inbox list
+      if (messageData.text && !messageData.isEcho) {
+        const conversationData = this.createConversationFromMessage(messageData);
+        if (conversationData) {
+          console.log('💬 CREATED CONVERSATION DATA:');
+          console.log('  - Conversation ID:', conversationData.id);
+          console.log('  - Snippet:', conversationData.snippet);
+          console.log('  - Participant:', conversationData.participants.data[0]?.name);
+          
+          // Send conversation data to clients subscribed to this page
+          this.facebookGateway.broadcastConversationToPage(pageId, conversationData);
+        }
+      }
     }
 
     // Handle postback (button clicks)
@@ -161,7 +175,7 @@ export class WebhookController {
       console.log('  - Title:', postbackData.title);
       console.log('  - Full postback data:', JSON.stringify(postbackData, null, 2));
       
-      await this.sendMessageToAllFacebookUsers(postbackData);
+      this.facebookGateway.broadcastMessageToPage(pageId, postbackData);
     }
 
     // Handle message delivery
@@ -180,7 +194,7 @@ export class WebhookController {
       console.log('  - Watermark:', deliveryData.watermark);
       console.log('  - Full delivery data:', JSON.stringify(deliveryData, null, 2));
       
-      await this.sendMessageToAllFacebookUsers(deliveryData);
+      this.facebookGateway.broadcastMessageToPage(pageId, deliveryData);
     }
 
     // Handle message read
@@ -197,24 +211,47 @@ export class WebhookController {
       console.log('  - Watermark:', readData.watermark);
       console.log('  - Full read data:', JSON.stringify(readData, null, 2));
       
-      await this.sendMessageToAllFacebookUsers(readData);
+      this.facebookGateway.broadcastMessageToPage(pageId, readData);
     }
   }
 
   /**
-   * Send message to all connected clients (no authentication required)
+   * Create conversation format from message data
    */
-  private async sendMessageToAllFacebookUsers(messageData: any) {
-    try {
-      console.log('📡 BROADCASTING TO ALL CONNECTED CLIENTS...');
-      
-      // Direct broadcast to all connected Socket.IO clients
-      this.facebookGateway.broadcastMessage(messageData);
-
-      console.log('✅ MESSAGE SENT TO ALL CONNECTED CLIENTS');
-    } catch (error) {
-      console.error('❌ Error broadcasting message:', error);
+  private createConversationFromMessage(messageData: any) {
+    if (!messageData.text || messageData.isEcho) {
+      return null;
     }
+
+    // Create conversation ID based on sender and page
+    const conversationId = `${messageData.pageId}_${messageData.senderId}`;
+    
+    // Create participant data
+    const participant = {
+      name: `User ${messageData.senderId.slice(-4)}`, // Use last 4 digits as name
+      email: `${messageData.senderId}@facebook.com`, // Generate email format
+      id: messageData.senderId,
+    };
+
+    return {
+      id: conversationId,
+      link: `https://facebook.com/messages/t/${conversationId}`,
+      message_count: 1, // New message
+      participants: {
+        data: [participant],
+      },
+      senders: {
+        data: [participant],
+      },
+      snippet: messageData.text, // Use text as snippet
+      unread_count: 1, // New message = unread
+      updated_time: new Date(messageData.timestamp).toISOString(),
+      pageId: messageData.pageId,
+    };
   }
+
+  // Removed broadcast-to-all helper in favor of page-scoped broadcasting
 }
+
+
 

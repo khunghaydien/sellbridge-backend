@@ -22,6 +22,8 @@ export class FacebookGateway implements OnGatewayInit, OnGatewayConnection, OnGa
   server: Server;
 
   private connectedClients: Map<string, Socket> = new Map();
+  // Track which page IDs each client is subscribed to
+  private clientPageSubscriptions: Map<string, Set<string>> = new Map();
 
   constructor() {}
 
@@ -39,17 +41,55 @@ export class FacebookGateway implements OnGatewayInit, OnGatewayConnection, OnGa
 
   handleDisconnect(client: Socket) {
     this.connectedClients.delete(client.id);
+    this.clientPageSubscriptions.delete(client.id);
     console.log(`👋 Client disconnected: ${client.id}`);
   }
 
-  // Removed unused 'ping', 'authenticate', and 'joinAllPages' handlers
+  // Subscribe a client to one or more page IDs (payload: { accessToken?: string, pageIds: string[] })
+  @SubscribeMessage('connectPages')
+  handleConnectPages(client: Socket, payload: { accessToken?: string; pageIds?: string[] }) {
+    const pageIds = Array.isArray(payload?.pageIds) ? payload.pageIds : [];
+    const cleaned = pageIds
+      .map((p) => (typeof p === 'string' ? p.trim() : ''))
+      .filter((p) => p.length > 0);
 
-  /**
-   * Broadcast message to ALL connected clients (no authentication required)
-   */
-  broadcastMessage(data: any) {
-    this.server.emit('new_message', data);
-    console.log(`📢 Broadcasted message to ${this.connectedClients.size} connected clients`, data);
+    // In a future iteration, validate payload.accessToken if needed.
+
+    this.clientPageSubscriptions.set(client.id, new Set(cleaned));
+    console.log(`🔗 Client ${client.id} connected pages: [${cleaned.join(', ')}]`);
+  }
+
+
+  // Broadcast a message only to clients subscribed to a specific pageId
+  broadcastMessageToPage(pageId: string, data: any) {
+    if (!pageId) {
+      return;
+    }
+    let delivered = 0;
+    for (const [clientId, socket] of this.connectedClients.entries()) {
+      const pages = this.clientPageSubscriptions.get(clientId);
+      if (pages && pages.has(pageId)) {
+        socket.emit('new_message', data);
+        delivered += 1;
+      }
+    }
+    console.log(`📢 Broadcasted page ${pageId} message to ${delivered} subscribed clients`, data);
+  }
+
+  // Broadcast a conversation only to clients subscribed to a specific pageId
+  broadcastConversationToPage(pageId: string, data: any) {
+    if (!pageId) {
+      return;
+    }
+    let delivered = 0;
+    for (const [clientId, socket] of this.connectedClients.entries()) {
+      const pages = this.clientPageSubscriptions.get(clientId);
+      if (pages && pages.has(pageId)) {
+        socket.emit('new_conversation', data);
+        delivered += 1;
+      }
+    }
+    console.log(`💬 Broadcasted page ${pageId} conversation to ${delivered} subscribed clients`, data);
   }
 
   // Removed unused helpers and page-specific broadcast

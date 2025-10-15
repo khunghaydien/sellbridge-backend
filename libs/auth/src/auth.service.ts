@@ -172,9 +172,20 @@ export class AuthService {
       ? Date.now() + (expiresIn * 1000) // Convert seconds to milliseconds
       : undefined;
     
-    // Generate email format: {name}_{id}@gmail.com
-    const sanitizedName = name.toLowerCase().replace(/\s+/g, '_');
-    const generatedEmail = `${sanitizedName}_${facebookId}@gmail.com`;
+    // Generate email format (ascii, no diacritics, no separators): {name}{id}@gmail.com
+    // 1) Remove diacritics, 2) Lowercase, 3) Remove non-alphanumeric, 4) Truncate to fit column length
+    const asciiName = name
+      ? name.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      : 'user';
+    const sanitizedNameRaw = asciiName.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const sanitizedName = sanitizedNameRaw.length > 0 ? sanitizedNameRaw : 'user';
+
+    const emailDomain = '@gmail.com';
+    const maxEmailLength = 60; // matches entity column length
+    const maxNameLength = Math.max(1, maxEmailLength - emailDomain.length - String(facebookId).length);
+    const trimmedName = sanitizedName.slice(0, maxNameLength);
+
+    const generatedEmail = `${trimmedName}${facebookId}${emailDomain}`;
     
     // Find user by email
     let user = await this.userRepository.findOne({ where: { email: generatedEmail } });
