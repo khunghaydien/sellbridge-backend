@@ -88,7 +88,6 @@ export class WebhookController {
         attachments: event.message.attachments,
         quickReply: event.message.quick_reply,
         isEcho: event.message.is_echo,
-        conversationId: `${pageId}_${event.sender.id}`,
         created_time: new Date(event.timestamp).toISOString(),
       };
 
