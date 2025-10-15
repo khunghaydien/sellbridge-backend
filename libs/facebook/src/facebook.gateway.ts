@@ -75,23 +75,5 @@ export class FacebookGateway implements OnGatewayInit, OnGatewayConnection, OnGa
     }
     console.log(`📢 Broadcasted page ${pageId} message to ${delivered} subscribed clients`, data);
   }
-
-  // Broadcast a conversation only to clients subscribed to a specific pageId
-  broadcastConversationToPage(pageId: string, data: any) {
-    if (!pageId) {
-      return;
-    }
-    let delivered = 0;
-    for (const [clientId, socket] of this.connectedClients.entries()) {
-      const pages = this.clientPageSubscriptions.get(clientId);
-      if (pages && pages.has(pageId)) {
-        socket.emit('new_conversation', data);
-        delivered += 1;
-      }
-    }
-    console.log(`💬 Broadcasted page ${pageId} conversation to ${delivered} subscribed clients`, data);
-  }
-
-  // Removed unused helpers and page-specific broadcast
 }
 
