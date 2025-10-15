@@ -6,7 +6,6 @@ import {
   Body,
   HttpCode,
   HttpStatus,
-  BadRequestException,
   Res,
 } from '@nestjs/common';
 import { Response } from 'express';
@@ -62,18 +61,7 @@ export class WebhookController {
     console.log('  - Body keys:', Object.keys(body || {}));
     console.log('  - Full body:', JSON.stringify(body, null, 2));
 
-    // EMIT TEST MESSAGE TO ALL CLIENTS
-    const testMessage = {
-      type: 'webhook_test',
-      timestamp: Date.now(),
-      message: 'Webhook received data!',
-      data: body
-    };
-    
-    console.log('🚀 EMITTING TEST MESSAGE TO ALL CLIENTS:');
-    console.log('  - Message:', JSON.stringify(testMessage, null, 2));
-    this.facebookGateway.broadcastMessage(testMessage);
-    console.log('✅ Test message emitted to all clients');
+    // Removed dev-only test emission
 
     // Facebook sends 'page' events
     if (body.object === 'page') {
@@ -103,21 +91,7 @@ export class WebhookController {
           }
         }
 
-        // Check for changes (feed, comments, etc)
-        if (entry.changes) {
-          console.log('🔄 PROCESSING PAGE CHANGES:');
-          for (const change of entry.changes) {
-            console.log('  - Change field:', change.field);
-            console.log('  - Change value:', JSON.stringify(change.value, null, 2));
-            // Emit change events too
-            this.facebookGateway.broadcastMessage({
-              type: 'page_change',
-              pageId,
-              change,
-              timestamp: Date.now()
-            });
-          }
-        }
+        // Ignore entry.changes for now since frontend doesn't consume them
       }
 
       console.log('✅ PAGE EVENT PROCESSED SUCCESSFULLY');
