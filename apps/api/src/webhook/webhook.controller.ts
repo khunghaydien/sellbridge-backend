@@ -55,12 +55,27 @@ export class WebhookController {
   @Post('facebook')
   @HttpCode(HttpStatus.OK)
   async handleWebhook(@Body() body: any, @Res() res: Response) {
+    console.log('🔍 WEBHOOK RECEIVED:', JSON.stringify(body, null, 2));
+    
     if (body.object === 'page') {
       for (const entry of body.entry) {
         const pageId = entry.id;
+        console.log('📄 PROCESSING PAGE ENTRY:', {
+          pageId,
+          time: entry.time,
+          hasMessaging: !!entry.messaging,
+          messagingCount: entry.messaging?.length || 0
+        });
 
         if (entry.messaging) {
           for (const event of entry.messaging) {
+            console.log('💬 PROCESSING MESSAGING EVENT:', {
+              sender: event.sender,
+              recipient: event.recipient,
+              timestamp: event.timestamp,
+              hasMessage: !!event.message,
+              messageType: event.message?.text ? 'text' : event.message?.attachments ? 'attachment' : 'other'
+            });
             await this.handleMessagingEvent(pageId, event);
           }
         }
@@ -69,6 +84,7 @@ export class WebhookController {
       return res.status(200).send('EVENT_RECEIVED');
     }
 
+    console.log('❌ UNKNOWN WEBHOOK OBJECT:', body.object);
     return res.status(200).send('UNKNOWN_EVENT');
   }
 
@@ -76,7 +92,24 @@ export class WebhookController {
    * Handle messaging events (messages, postbacks, etc)
    */
   private async handleMessagingEvent(pageId: string, event: any) {
+    console.log('🔍 HANDLING MESSAGING EVENT:', {
+      pageId,
+      senderId: event.sender?.id,
+      recipientId: event.recipient?.id,
+      hasMessage: !!event.message,
+      isEcho: event.message?.is_echo,
+      messageText: event.message?.text,
+      messageId: event.message?.mid
+    });
+
     if (event.message && !event.message.is_echo) {
+      console.log('✅ PROCESSING VALID MESSAGE:', {
+        senderId: event.sender.id,
+        recipientId: event.recipient.id,
+        text: event.message.text,
+        messageId: event.message.mid
+      });
+
       const messageData = {
         type: 'message',
         pageId,
@@ -91,7 +124,17 @@ export class WebhookController {
         created_time: new Date(event.timestamp).toISOString(),
       };
 
+      console.log('📤 BROADCASTING MESSAGE TO PAGE:', {
+        pageId,
+        messageData
+      });
+
       this.facebookGateway.broadcastMessageToPage(pageId, messageData);
+    } else {
+      console.log('❌ SKIPPING MESSAGE:', {
+        reason: !event.message ? 'no_message' : 'is_echo',
+        isEcho: event.message?.is_echo
+      });
     }
   }
 }
